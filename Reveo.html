@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>REVEO — AI Video Review (Dark Prototype)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+.project-status {
+  position: relative;
+  display: inline-block;
+}
+
+.status-btn {
+  background-color: #2a2a2a;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.status-dropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+}
+
+.status-dropdown.hidden {
+  display: none;
+}
+
+.status-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+
+.status-option:hover {
+  background-color: #333;
+}
+
+  :root{
+    --bg:#0b1220; --panel:#0f1724; --muted:#94a3b8; --accent:#6ee7b7; --accent-2:#7c3aed;
+    --glass: rgba(255,255,255,0.03);
+    --card-gradient: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    background:linear-gradient(180deg,var(--bg), #07101a 1200px);
+    color:#e6eef6; -webkit-font-smoothing:antialiased;
+  }
+
+  /* header */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 20px; position:sticky;top:0; z-index:60;
+    background:linear-gradient(180deg, rgba(5,8,13,0.6), rgba(5,8,13,0.3));
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    backdrop-filter: blur(6px);
+  }
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{
+    width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#0ea5a4,#7c3aed);font-weight:700;color:#021018;font-size:18px;
+    box-shadow:0 8px 30px rgba(124,58,237,0.12);
+  }
+  h1{font-size:15px;margin:0}
+  .subtitle{font-size:12px;color:var(--muted);margin-top:2px}
+
+  .top-actions{display:flex;gap:10px;align-items:center}
+  .btn{
+    background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);
+    padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600
+  }
+  .btn.primary{
+    background:linear-gradient(90deg,#06b6d4,#7c3aed); color:#021018;border:none; box-shadow:0 8px 24px rgba(7,89,133,0.12)
+  }
+
+  /* layout */
+  .container{max-width:1200px;margin:22px auto;padding:0 18px;display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+  @media(max-width:980px){ .container{grid-template-columns:1fr;padding:12px} .right-col{order:2} .left-col{order:1} }
+
+  .panel{
+    background:var(--panel); border-radius:12px; padding:14px; box-shadow: 0 10px 40px rgba(2,6,23,0.5);
+    border: 1px solid rgba(255,255,255,0.02);
+  }
+
+  /* upload area */
+  .upload-row{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .upload-info{color:var(--muted);font-size:13px}
+  input[type="file"]{color:transparent}
+
+  /* video area */
+  .video-wrap{position:relative;border-radius:10px;overflow:hidden;margin-top:12px;background:#000; display:block}
+  /* improved responsive behavior:
+     video fills width of container and wrapper height is set via JS to match video's aspect ratio,
+     canvas sits exactly on top for drawing */
+  video{display:block;width:100%;height:100%; background:#000; object-fit:contain; display:block}
+  canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;cursor:crosshair}
+
+  /* controls */
+  .controls{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .control-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
+  .control-btn.primary{background:linear-gradient(90deg,#06b6d4,#7c3aed);color:#021018;border:none}
+
+  .muted{color:var(--muted);font-size:13px}
+  .chip{padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:8px;color:var(--muted);font-weight:600}
+
+  /* timeline & add mark (hover) */
+  .timeline{position:relative;display:block;height:12px;margin-top:12px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));overflow:visible}
+  .timeline-inner{height:8px;background:rgba(255,255,255,0.02);border-radius:6px;position:relative}
+  .marker{position:absolute;top:-6px;width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg,#06b6d4,#7c3aed);box-shadow:0 4px 10px rgba(124,58,237,0.12);cursor:pointer}
+
+  .add-mark-btn{
+    position:absolute; top:-36px; transform:translateX(-50%);
+    background:linear-gradient(90deg,#06b6d4,#7c3aed); color:#021018;
+    padding:6px 8px;border-radius:8px;font-weight:700;font-size:13px; cursor:pointer; display:none; z-index:30;
+    box-shadow:0 6px 18px rgba(7,89,133,0.12);
+  }
+
+  /* right column / sidebar */
+  .right-col{display:flex;flex-direction:column;gap:12px}
+  .comments-list{display:flex;flex-direction:column;gap:10px;max-height:720px;overflow:auto;padding-right:6px}
+  .comment{
+    display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)
+  }
+  .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .text{font-size:14px;color:#e6eef6}
+  .comment .thumb{width:64px;height:44px;border-radius:8px;background:rgba(124,58,237,0.08);display:flex;align-items:center;justify-content:center;color:#bde; font-weight:700}
+
+  .tiny{font-size:12px;color:var(--muted)}
+
+  /* AI panel */
+  .ai-panel{display:flex;flex-direction:column;gap:10px}
+  .ai-item{padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border:1px solid rgba(255,255,255,0.02);display:flex;justify-content:space-between;align-items:center}
+  .ai-item .left{display:flex;flex-direction:column}
+  .ai-badge{background:rgba(124,58,237,0.12);padding:6px 8px;border-radius:8px;color:#cfc7ff;font-weight:600;font-size:12px}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(1,3,6,0.6);display:flex;align-items:center;justify-content:center;z-index:90}
+  .modal{width:95%;max-width:640px;background:linear-gradient(180deg,#0b1220,#071018);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.03)}
+  textarea{width:100%;min-height:90px;padding:10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#e6eef6}
+
+  .record-indicator{display:inline-block;padding:6px 10px;border-radius:999px;background:#3b1010;color:#ffd6d6;font-weight:700;font-size:13px}
+
+  /* footer */
+  footer{max-width:1200px;margin:20px auto;color:var(--muted);text-align:center;font-size:13px;padding:10px}
+  /* scrollbar */
+  .comments-list::-webkit-scrollbar{width:8px}
+  .comments-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.03);border-radius:8px}
+  
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">R</div>
+    <div>
+      <h1>REVEO</h1>
+      <div class="subtitle">AI-assisted video review — prototype</div>
+    </div>
+  </div>
+
+  <div class="top-actions">
+    <div class="tiny">Dark prototype</div>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- LEFT: video and controls -->
+  <div class="left-col">
+    <div class="panel">
+      <div class="upload-row">
+        <div>
+          <div style="font-weight:700;font-size:15px">Upload & Review</div>
+          <div class="upload-info">Upload an .mp4 (max 300MB). Use drawing & comment tools to annotate.</div>
+        </div>
+        <!-- replaced Local demo with Project Status -->
+        <!-- Project Status Button -->
+<div class="project-status">
+  <button id="statusBtn" class="status-btn">Project Status ▾</button>
+  <div id="statusDropdown" class="status-dropdown hidden">
+    <div class="status-option" data-status="Not Started">🔴 Not Started</div>
+    <div class="status-option" data-status="Editing">🟡 Editing</div>
+    <div class="status-option" data-status="Done">🟢 Done</div>
+  </div>
+</div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <input id="upload" type="file" accept="video/mp4" />
+        <div id="uploadInfo" class="tiny" style="margin-top:8px;color:var(--muted)">No file selected</div>
+      </div>
+
+      <!-- video wrapper: JS will size this wrapper to the video's aspect ratio to keep it responsive -->
+      <div class="video-wrap" id="videoWrap" style="margin-top:12px;">
+        <video id="video" controls crossorigin="anonymous" playsinline></video>
+        <canvas id="canvas" ></canvas>
+      </div>
+
+      <div class="controls">
+        <button class="control-btn primary" id="addFeedbackBtn">+ Add Feedback</button>
+        <button class="control-btn" id="toggleDrawBtn">✏️ Draw</button>
+        <button class="control-btn" id="clearDrawBtn">Clear</button>
+        <button class="control-btn" id="runAiBtn">⚡ Run Smart Review</button>
+        <div style="margin-left:auto" class="tiny">Markers: <span id="markerCount">0</span></div>
+      </div>
+
+      <div class="timeline" id="timeline" aria-hidden="true">
+        <div class="timeline-inner" id="timelineInner"></div>
+        <div class="add-mark-btn" id="timelineAddBtn">+ Add Mark</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">REVEO Assist</div>
+        <div class="tiny" id="aiStatus">Idle</div>
+      </div>
+      <div class="ai-panel" id="aiPanel" style="margin-top:10px">
+        <div class="tiny">Run Smart Review to detect audio gaps, low resolution, missing captions, and caption issues.</div>
+        <!-- Items injected -->
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: comments & actions (always visible feedback chat) -->
+  <aside class="right-col">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Feedback & Notes</div>
+        <div class="tiny" id="commentsCount">0</div>
+      </div>
+      <div class="comments-list" id="commentsList" style="margin-top:10px">
+        <div class="tiny">No feedback yet — click “+ Add Feedback” while the video is paused or playing.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="control-btn" id="notifyAdminBtn">📩 Notify Admin</button>
+        <button class="control-btn" id="exportBtn">⬇️ Export Report</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Quick Actions</div>
+        <div class="tiny">Tools</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <button class="control-btn" id="jumpStart">⏮ Jump to Start</button>
+        <button class="control-btn" id="simulateAI">🔁 Re-run Review</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- modal: add feedback (used by both + Add Feedback and timeline + Add Mark) -->
+<div id="modal" style="display:none">
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700">Add Feedback</div>
+        <div class="tiny" id="modalTime">00:00</div>
+      </div>
+
+      <textarea id="commentText" placeholder="Write feedback (optional)"></textarea>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="control-btn" id="recordBtn">🎤 Record Voice</button>
+          <div id="recIndicator"></div>
+          <div class="tiny" id="recHint">Max 30s</div>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button class="control-btn" id="cancelBtn">Cancel</button>
+          <button class="control-btn primary" id="saveBtn">Save Feedback</button>
+        </div>
+      </div>
+      <div id="audioPreview" style="margin-top:10px"></div>
+    </div>
+  </div>
+</div>
+
+<footer>REVEO prototype • Project Status above • Voice recording requires microphone permission</footer>
+
+<script>
+  const statusBtn = document.getElementById("statusBtn");
+const statusDropdown = document.getElementById("statusDropdown");
+
+statusBtn.addEventListener("click", () => {
+  statusDropdown.classList.toggle("hidden");
+});
+
+document.querySelectorAll(".status-option").forEach(option => {
+  option.addEventListener("click", () => {
+    const selected = option.getAttribute("data-status");
+    statusBtn.textContent = `Project Status: ${selected}`;
+    statusDropdown.classList.add("hidden");
+  });
+});
+
+window.addEventListener("click", (e) => {
+  if (!e.target.closest(".project-status")) {
+    statusDropdown.classList.add("hidden");
+  }
+});
+
+/* =========== State =========== */
+const MAX_BYTES = 300 * 1024 * 1024;
+const upload = document.getElementById('upload');
+const video = document.getElementById('video');
+const uploadInfo = document.getElementById('uploadInfo');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const addFeedbackBtn = document.getElementById('addFeedbackBtn');
+const toggleDrawBtn = document.getElementById('toggleDrawBtn');
+const clearDrawBtn = document.getElementById('clearDrawBtn');
+const runAiBtn = document.getElementById('runAiBtn');
+const aiPanel = document.getElementById('aiPanel');
+const aiStatus = document.getElementById('aiStatus');
+const timeline = document.getElementById('timeline');
+const timelineInner = document.getElementById('timelineInner');
+const timelineAddBtn = document.getElementById('timelineAddBtn');
+const markerCount = document.getElementById('markerCount');
+
+const commentsList = document.getElementById('commentsList');
+const commentsCount = document.getElementById('commentsCount');
+const notifyAdminBtn = document.getElementById('notifyAdminBtn');
+const exportBtn = document.getElementById('exportBtn');
+const jumpStart = document.getElementById('jumpStart');
+const simulateAI = document.getElementById('simulateAI');
+const resetBtn = document.getElementById('resetBtn');
+
+const modal = document.getElementById('modal');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalTime = document.getElementById('modalTime');
+const commentText = document.getElementById('commentText');
+const recordBtn = document.getElementById('recordBtn');
+const recIndicator = document.getElementById('recIndicator');
+const audioPreview = document.getElementById('audioPreview');
+const cancelBtn = document.getElementById('cancelBtn');
+const saveBtn = document.getElementById('saveBtn');
+
+const videoWrap = document.getElementById('videoWrap');
+const projectStatusChip = document.getElementById('projectStatusChip');
+
+let isDrawing = false;
+let drawingMode = false;
+let paths = []; // saved drawings {id,time,dataURL}
+let comments = []; // saved feedback comments {id,time,text,voice,drawings}
+let mediaRecorder = null;
+let audioChunks = [];
+let currentVoiceUrl = null;
+let currentModalTime = 0;
+let timelineHoverX = 0; // px inside timeline
+let pendingMarkerTime = null;
+
+/* =========== Helpers =========== */
+function uid(prefix='id'){ return prefix + Math.random().toString(36).slice(2,9) }
+function formatTime(t){
+  if(isNaN(t)) return '00:00';
+  const mm = Math.floor(t/60).toString().padStart(2,'0');
+  const ss = Math.floor(t%60).toString().padStart(2,'0');
+  return mm + ':' + ss;
+}
+function setUploadInfo(txt){ uploadInfo.textContent = txt }
+
+/* =========== Upload handling =========== */
+upload.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  if(f.size > MAX_BYTES){ alert('File too large (max 300MB)'); upload.value=''; return; }
+  const url = URL.createObjectURL(f);
+  video.src = url;
+  video.load();
+  setUploadInfo(`${f.name} • ${(f.size/1024/1024).toFixed(2)} MB`);
+  comments = []; paths = []; renderComments(); renderMarkers(); aiPanel.innerHTML=''; aiStatus.textContent='Idle';
+  // update project status to show file loaded
+  projectStatusChip.textContent = `Project Status: Uploaded`;
+  // Resize wrapper once metadata available (load event will also do it)
+  resizeVideoWrapper();
+});
+
+/* =========== Canvas drawing =========== */
+function resizeCanvasToVideo(){
+  // Set canvas pixel size to the video element's displayed size
+  const rect = video.getBoundingClientRect();
+  // Avoid zero width/height
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.left = rect.left - videoWrap.getBoundingClientRect().left + 'px';
+  canvas.style.top = rect.top - videoWrap.getBoundingClientRect().top + 'px';
+}
+function resizeVideoWrapper(){
+  // If video has intrinsic size, compute aspect ratio and set wrapper height accordingly
+  const vw = video.videoWidth || 16;
+  const vh = video.videoHeight || 9;
+  const aspect = vw && vh ? (vw / vh) : (16/9);
+  const containerWidth = videoWrap.clientWidth || Math.min(1000, window.innerWidth - 200);
+  // height by aspect ratio but cap to 75% viewport height
+  let targetHeight = containerWidth / aspect;
+  const maxH = window.innerHeight * 0.75;
+  if(targetHeight > maxH) targetHeight = maxH;
+  // Ensure minimum reasonable height
+  if(targetHeight < 180) targetHeight = 180;
+  videoWrap.style.height = `${Math.floor(targetHeight)}px`;
+  // After wrapper size change, update canvas
+  // Use a short timeout to ensure layout applied when called from loadedmetadata
+  setTimeout(resizeCanvasToVideo, 60);
+}
+window.addEventListener('resize', ()=>{
+  resizeVideoWrapper();
+  resizeCanvasToVideo();
+});
+
+/* when video metadata is ready */
+video.addEventListener('loadedmetadata', ()=>{
+  resizeVideoWrapper();
+  runSmartUIAfterUpload();
+});
+
+/* Drawing interactions */
+let currentPath = [];
+canvas.style.pointerEvents = 'none'; // until drawing enabled
+canvas.addEventListener('pointerdown', (e)=>{
+  if(!drawingMode) return;
+  isDrawing = true;
+  // compute coordinates relative to canvas
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  currentPath = [{x, y}];
+});
+canvas.addEventListener('pointermove', (e)=>{
+  if(!drawingMode || !isDrawing) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const prev = currentPath[currentPath.length-1];
+  ctx.strokeStyle = 'rgba(110,231,183,0.95)';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(prev.x, prev.y);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  currentPath.push({x,y});
+});
+canvas.addEventListener('pointerup', (e)=>{
+  if(!drawingMode) return;
+  isDrawing = false;
+  // Save drawing snapshot captured from current canvas pixels
+  try{
+    const dataURL = canvas.toDataURL('image/png');
+    const t = video.currentTime || 0;
+    paths.push({id: uid('d'), time: t, dataURL});
+    flashCanvas();
+    renderMarkers();
+  }catch(err){
+    // ignore serialization errors
+    console.warn('drawing save error', err);
+  }
+});
+
+/* toggles */
+toggleDrawBtn.addEventListener('click', ()=>{
+  drawingMode = !drawingMode;
+  canvas.style.pointerEvents = drawingMode ? 'auto' : 'none';
+  toggleDrawBtn.textContent = drawingMode ? '✏️ Drawing (on)' : '✏️ Draw';
+  if(!drawingMode){ // when turning off, redraw saved drawings onto canvas as visual
+    redrawSaved();
+  }
+});
+clearDrawBtn.addEventListener('click', ()=>{
+  if(!confirm('Clear saved drawings?')) return;
+  paths = [];
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  renderMarkers();
+});
+
+/* redraw saved drawings */
+function redrawSaved(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // draw images scaled to canvas area
+  paths.forEach(p=>{
+    const img = new Image();
+    img.onload = ()=> {
+      try { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); }catch(e){}
+    };
+    img.src = p.dataURL;
+  });
+}
+
+/* flash effect */
+function flashCanvas(){
+  canvas.style.boxShadow = '0 0 0 8px rgba(124,58,237,0.06)';
+  setTimeout(()=> canvas.style.boxShadow = 'none', 260);
+}
+
+/* timeline markers rendering */
+function renderMarkers(){
+  // We'll render markers inside timelineInner positioned by percentage of duration
+  timelineInner.innerHTML = '';
+  paths.forEach(p=>{
+    // if drawing mark: show marker too
+    const el = document.createElement('div');
+    el.className = 'marker';
+    if(video.duration){
+      const pct = Math.max(0, Math.min(1, p.time / video.duration));
+      el.style.left = `${pct * 100}%`;
+      el.title = `Mark @ ${formatTime(p.time)}`;
+      el.addEventListener('click', ()=>{ video.currentTime = p.time; video.play(); });
+      timelineInner.appendChild(el);
+    }
+  });
+  // also show feedback comment markers
+  comments.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'marker';
+    el.style.width = '8px'; el.style.height='8px';
+    if(video.duration){
+      const pct = Math.max(0, Math.min(1, c.time / video.duration));
+      el.style.left = `${pct * 100}%`;
+      el.title = `Comment @ ${formatTime(c.time)}`;
+      el.addEventListener('click', ()=>{ video.currentTime = c.time; video.play(); });
+      timelineInner.appendChild(el);
+    }
+  });
+  markerCount.textContent = (paths.length + comments.length).toString();
+}
+
+/* =========== Comments & Voice recording (MediaRecorder) =========== */
+
+/* Open modal for Add Feedback button (uses current video time) */
+addFeedbackBtn.addEventListener('click', ()=>{
+  if(!video.src){ alert('Upload video first'); return; }
+  currentModalTime = video.currentTime || 0;
+  modalTime.textContent = formatTime(currentModalTime);
+  commentText.value = '';
+  currentVoiceUrl = null;
+  audioPreview.innerHTML = '';
+  recIndicator.innerHTML = '';
+  showModal();
+});
+
+/* Timeline hover: show +Add mark button and compute time for hover */
+timeline.addEventListener('mousemove', (e)=>{
+  if(!video.duration || isNaN(video.duration)) return;
+  const rect = timelineInner.getBoundingClientRect();
+  // clamp inside inner
+  let x = e.clientX - rect.left;
+  x = Math.max(0, Math.min(rect.width, x));
+  timelineAddBtn.style.left = (rect.left - timeline.getBoundingClientRect().left + x) + 'px';
+  timelineAddBtn.style.display = 'block';
+  timelineHoverX = x;
+});
+timeline.addEventListener('mouseleave', ()=>{
+  timelineAddBtn.style.display = 'none';
+});
+
+/* click +Add Mark: pause, open modal for that hover time */
+timelineAddBtn.addEventListener('click', ()=>{
+  if(!video.duration || isNaN(video.duration)){ alert('Load a video first'); return; }
+  const innerRect = timelineInner.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, timelineHoverX / innerRect.width));
+  pendingMarkerTime = pct * video.duration;
+  video.pause();
+  currentModalTime = pendingMarkerTime;
+  modalTime.textContent = formatTime(currentModalTime);
+  commentText.value = '';
+  currentVoiceUrl = null;
+  audioPreview.innerHTML = '';
+  recIndicator.innerHTML = '';
+  showModal();
+});
+
+/* show/hide modal helpers */
+function showModal(){ modal.style.display = 'block'; modalBackdrop.style.display = 'flex'; }
+function hideModal(){ modal.style.display = 'none'; modalBackdrop.style.display = 'none'; pendingMarkerTime = null; }
+
+/* recording logic for modal recordBtn (shared) */
+recordBtn.addEventListener('click', async ()=>{
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.stop();
+    recordBtn.textContent = '🎤 Record Voice';
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    alert('Recording not supported in this browser');
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if(e.data.size) audioChunks.push(e.data); };
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      currentVoiceUrl = URL.createObjectURL(blob);
+      audioPreview.innerHTML = `<audio controls src="${currentVoiceUrl}"></audio>`;
+      // stop tracks
+      stream.getTracks().forEach(t=>t.stop());
+      recIndicator.innerHTML = `<div class="tiny" style="color:var(--accent)">Recorded</div>`;
+    };
+    mediaRecorder.start();
+    recordBtn.textContent = '⏹ Stop';
+    recIndicator.innerHTML = `<div class="record-indicator">Recording...</div>`;
+  }catch(err){
+    alert('Microphone permission denied or not available');
+  }
+});
+
+/* Save feedback from modal:
+   - if modal opened from Add Feedback button, currentModalTime already set to video.currentTime
+   - if modal opened from timeline add, currentModalTime set to pendingMarkerTime
+*/
+saveBtn.addEventListener('click', ()=>{
+  const txt = commentText.value.trim();
+  // also include drawings close in time (within 1s)
+  const relatedDrawings = paths.filter(d => Math.abs(d.time - currentModalTime) < 1.0);
+  if(!txt && !currentVoiceUrl && relatedDrawings.length === 0){
+    alert('Add text, voice or a visual mark to save feedback.');
+    return;
+  }
+  const item = {
+    id: uid('c'),
+    time: currentModalTime,
+    text: txt,
+    voice: currentVoiceUrl,
+    drawings: relatedDrawings.map(d=>d.dataURL)
+  };
+  // push to front (latest first)
+  comments.unshift(item);
+  hideModal();
+  renderComments();
+  renderMarkers();
+});
+
+/* cancel */
+cancelBtn.addEventListener('click', ()=> hideModal());
+modalBackdrop.addEventListener('click', (e)=> { if(e.target === modalBackdrop) hideModal(); });
+
+/* render comments into the right sidebar (chat-like) */
+function renderComments(){
+  commentsList.innerHTML = '';
+  if(comments.length === 0){
+    commentsList.innerHTML = '<div class="tiny">No feedback yet — add feedback while the video is paused or playing.</div>';
+    commentsCount.textContent = '0';
+    return;
+  }
+  commentsCount.textContent = comments.length;
+  comments.forEach(c=>{
+    const el = document.createElement('div'); el.className = 'comment';
+    const left = document.createElement('div'); left.style.flex = '1';
+    const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `@ ${formatTime(c.time)}`;
+    const txt = document.createElement('div'); txt.className = 'text'; txt.textContent = c.text || '(voice note)';
+    left.appendChild(meta); left.appendChild(txt);
+    if(c.drawings && c.drawings.length){
+      const img = document.createElement('img'); img.src = c.drawings[0]; img.style.width='100%'; img.style.borderRadius='8px'; img.style.marginTop='8px';
+      left.appendChild(img);
+    }
+    const controls = document.createElement('div'); controls.style.display='flex'; controls.style.flexDirection='column'; controls.style.gap='6px';
+    const jump = document.createElement('button'); jump.className='control-btn'; jump.textContent='▶'; jump.title='Jump to time';
+    jump.addEventListener('click', ()=>{ video.currentTime = c.time; video.play(); });
+    controls.appendChild(jump);
+    if(c.voice){
+      const play = document.createElement('button'); play.className='control-btn'; play.textContent='🔊'; play.title='Play voice';
+      play.addEventListener('click', ()=>{
+        const a = new Audio(c.voice); a.play();
+      });
+      controls.appendChild(play);
+    }
+    el.appendChild(left);
+    el.appendChild(controls);
+    commentsList.appendChild(el);
+  });
+}
+
+/* =========== REVEO Assist: Smart Review (mix of real checks + light audio analysis) =========== */
+runAiBtn.addEventListener('click', runSmartReview);
+simulateAI.addEventListener('click', runSmartReview);
+
+async function runSmartReview(){
+  if(!video.src){ alert('Upload a video first'); return; }
+  aiPanel.innerHTML = '';
+  aiStatus.textContent = 'Analyzing…';
+  runAiBtn.disabled = true;
+  simulateAI.disabled = true;
+
+  // 1) Video resolution check (real)
+  const vw = video.videoWidth || 0;
+  const vh = video.videoHeight || 0;
+  const resMsg = (vw && vh) ? `Resolution detected: ${vw} × ${vh}` : 'Unable to detect resolution';
+  const resFlag = (vw < 1280 || vh < 720);
+
+  // create item element
+  const resEl = makeAiItem('Video Quality', resMsg, resFlag ? 'warning' : 'ok');
+  aiPanel.appendChild(resEl);
+
+  // 2) Caption track check
+  const hasTextTracks = video.textTracks && video.textTracks.length > 0;
+  const capEl = makeAiItem('Captions', hasTextTracks ? 'Captions detected' : 'No captions found — add SRT for accessibility', hasTextTracks ? 'ok' : 'warning');
+  aiPanel.appendChild(capEl);
+
+  // 3) Audio analysis: detect long silence (>1.5s) or near-zero rms
+  const audioFindings = await analyzeAudioForSilence(video, 4000); // sample for 4s
+  if(audioFindings.silences.length > 0){
+    audioFindings.silences.forEach(s=>{
+      const el = makeAiItem('Audio Gap', `Silence ~${s.duration.toFixed(1)}s at ${formatTime(s.time)}`, 'warning', ()=>{ video.currentTime = s.time; video.play(); });
+      aiPanel.appendChild(el);
+    });
+  } else {
+    aiPanel.appendChild(makeAiItem('Audio Check', 'No long silence detected in sample', 'ok'));
+  }
+
+  // 4) Caption spelling simulation (we can't transcribe without backend) -> simulated if captions exist
+  if(hasTextTracks){
+    // simulate a spelling issue
+    const fake = makeAiItem('Captions — Spelling', `Possible spelling: "recieve" → "receive" at 00:12`, 'warning', ()=>{ video.currentTime = 12; video.play(); });
+    aiPanel.appendChild(fake);
+  }
+
+  // 5) Summarize
+  const totalFindings = aiPanel.querySelectorAll('.ai-item.warning').length;
+  aiStatus.textContent = `Completed — ${totalFindings} issue(s) found`;
+  runAiBtn.disabled = false; simulateAI.disabled = false;
+}
+
+/* helper to create AI item DOM */
+function makeAiItem(title, text, level='info', onClick){
+  const wrap = document.createElement('div'); wrap.className = 'ai-item';
+  if(level === 'warning') wrap.style.borderColor = 'rgba(255,120,100,0.12)';
+  const left = document.createElement('div'); left.className = 'left';
+  const h = document.createElement('div'); h.style.fontWeight='700'; h.textContent = title;
+  const p = document.createElement('div'); p.className = 'tiny'; p.style.marginTop='6px'; p.textContent = text;
+  left.appendChild(h); left.appendChild(p);
+  const right = document.createElement('div');
+  const btn = document.createElement('button'); btn.className = 'control-btn'; btn.textContent = '→';
+  btn.addEventListener('click', ()=> { if(onClick) onClick(); else alert(title + "\\n\\n" + text); });
+  right.appendChild(btn);
+  wrap.appendChild(left); wrap.appendChild(right);
+  if(level === 'warning'){
+    const badge = document.createElement('div'); badge.className='ai-badge'; badge.textContent='Issue';
+    wrap.insertBefore(badge, wrap.firstChild);
+    badge.style.marginRight='8px';
+  }
+  return wrap;
+}
+
+/* Light-weight audio analysis: sample a short portion by connecting video element to AudioContext */
+function analyzeAudioForSilence(videoEl, sampleMs = 4000){
+  return new Promise((resolve)=>{
+    // If AudioContext not available, quickly return no findings
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if(!AudioContext){ resolve({silences: []}); return; }
+
+    // We'll run analysis for `sampleMs` ms from current time
+    const ctxAudio = new AudioContext();
+    const source = ctxAudio.createMediaElementSource(videoEl);
+    const analyser = ctxAudio.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+    analyser.connect(ctxAudio.destination);
+
+    const data = new Uint8Array(analyser.fftSize);
+    const silencePeriods = [];
+    const startTime = videoEl.currentTime;
+    const sampleEndTime = startTime + Math.min(6, Math.max(2, sampleMs/1000));
+    // play briefly muted to ensure audio flows if video paused
+    const origMuted = videoEl.muted;
+    const origPlay = !videoEl.paused;
+    videoEl.muted = true;
+    videoEl.play().catch(()=>{});
+
+    let lastSilentStart = null;
+    const interval = 120;
+    const check = setInterval(()=>{
+      analyser.getByteTimeDomainData(data);
+      // compute rms-ish
+      let sum = 0;
+      for(let i=0;i<data.length;i++){
+        const v = (data[i] - 128)/128;
+        sum += v*v;
+      }
+      const rms = Math.sqrt(sum/data.length);
+      // treat near-zero RMS as silence
+      if(rms < 0.0025){
+        if(lastSilentStart === null) lastSilentStart = videoEl.currentTime;
+      } else {
+        if(lastSilentStart !== null){
+          const dur = videoEl.currentTime - lastSilentStart;
+          if(dur > 1.5) silencePeriods.push({time: lastSilentStart, duration: dur});
+          lastSilentStart = null;
+        }
+      }
+      if(videoEl.currentTime >= sampleEndTime){
+        clearInterval(check);
+        // stop audio flow
+        videoEl.pause();
+        videoEl.muted = origMuted;
+        if(origPlay) videoEl.play().catch(()=>{});
+        ctxAudio.close();
+        resolve({silences: silencePeriods});
+      }
+    }, interval);
+  });
+}
+
+/* =========== Notify Admin (mailto) & Export =========== */
+notifyAdminBtn.addEventListener('click', ()=>{
+  // Compose summary
+  const totalComments = comments.length;
+  const totalMarks = paths.length;
+  const findings = Array.from(document.querySelectorAll('.ai-item')).filter(it=> it.querySelector('.ai-badge'));
+  const issues = findings.length;
+
+  const bodyLines = [];
+  bodyLines.push(`REVEO Prototype — Review Summary`);
+  bodyLines.push(`Time: ${new Date().toLocaleString()}`);
+  bodyLines.push('');
+  bodyLines.push(`Comments: ${totalComments}`);
+  comments.forEach(c => bodyLines.push(`- ${formatTime(c.time)}: ${c.text || '(voice note)'}`));
+  bodyLines.push('');
+  bodyLines.push(`Marks: ${totalMarks}`);
+  bodyLines.push(`AI issues found: ${issues}`);
+  bodyLines.push('');
+  bodyLines.push('Open the app to review details.');
+
+  const subject = encodeURIComponent('REVEO — Video Review Completed');
+  const body = encodeURIComponent(bodyLines.join('\\n'));
+  // admin email — replace with real admin email
+  const admin = 'admin@example.com';
+  // Use mailto to open user's email client (frontend-only)
+  window.location.href = `mailto:${admin}?subject=${subject}&body=${body}`;
+});
+
+/* export simple text report */
+exportBtn.addEventListener('click', ()=>{
+  const parts = [];
+  parts.push('REVEO — Exported Report');
+  parts.push('Generated: ' + new Date().toLocaleString());
+  parts.push('---');
+  parts.push('Comments: ' + comments.length);
+  comments.forEach(c => parts.push(`${formatTime(c.time)} — ${c.text || '(voice note)'}`));
+  parts.push('---');
+  parts.push('Marks: ' + paths.length);
+  const blob = new Blob([parts.join('\\n')], {type:'text/plain'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'reveo-report.txt'; a.click();
+});
+
+/* jump start */
+jumpStart.addEventListener('click', ()=>{ video.currentTime = 0; video.play(); });
+
+/* reset */
+resetBtn.addEventListener('click', ()=>{
+  if(!confirm('Reset demo (clear uploaded video, comments, marks)?')) return;
+  upload.value=''; video.src=''; setUploadInfo('No file selected'); comments=[]; paths=[]; renderComments(); renderMarkers(); aiPanel.innerHTML=''; aiStatus.textContent='Idle';
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  projectStatusChip.textContent = 'Project Status: Draft';
+});
+
+/* small helper after upload to run sample UI */
+function runSmartUIAfterUpload(){
+  aiPanel.innerHTML = '<div class="tiny">Ready — click "Run Smart Review" to analyze.</div>';
+}
+
+/* initial state */
+renderComments();
+renderMarkers();
+
+</script>
+</body>
+</html>
